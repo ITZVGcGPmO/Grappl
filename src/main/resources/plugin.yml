@@ -1,0 +1,5 @@
+name: GrapplServer
+main: io.github.itzvgcgpmo.grappl4bungee.Main
+version: 1.0
+author: ITZVGcGPmO
+depend: [BungeeAuth]

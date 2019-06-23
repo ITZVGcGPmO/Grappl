@@ -16,7 +16,7 @@ public class WebServer {
         try {
             httpServer = HttpServer.create(new InetSocketAddress(8080), 0);
             httpServer.createContext("/", new GrapplHomepage());
-            httpServer.createContext("/donate", new GrapplDonate());
+            httpServer.createContext("/donateCactose", new CactoseDonate());
 //            httpServer.createContext("/stats", new GrapplStats());
             httpServer.setExecutor(null);
             httpServer.start();

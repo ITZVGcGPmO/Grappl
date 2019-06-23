@@ -2,11 +2,16 @@ package com.daexsys.grappl.server;
 
 import com.daexsys.grappl.GrapplGlobal;
 import com.daexsys.grappl.web.WebServer;
+import io.github.itzvgcgpmo.grappl4bungee.Main;
+import net.md_5.bungee.api.ProxyServer;
+import net.md_5.bungee.api.config.ListenerInfo;
+import net.md_5.bungee.api.config.ServerInfo;
 
 import java.io.*;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.text.DateFormat;
 import java.util.*;
 
 public class Server {
@@ -27,17 +32,12 @@ public class Server {
         startServer();
     }
 
-    public static int port = 40000;
-
-    public static int getPort(User user) {
-        port += 2;
-        return port;
-//        int choice = new Random().nextInt(40000) + 10000;
-//
-//        if (!portsTaken.contains(choice)) {
-//            portsTaken.add(choice);
-//            return choice;
-//        } else return getPort(user);
+    public static int getPort(int choice) {
+        if (!portsTaken.contains(choice)) {
+            portsTaken.add(choice);
+            return choice;
+        } else return getPort((new Random().nextInt(5000)*2)+40000);
+        // if choice not avail, try random even port between 40k and 50k
     }
 
     static {
@@ -54,10 +54,7 @@ public class Server {
 
         // Start the web server
         WebServer.main(null);
-
-        log("GrapplServer started.");
-        log("Waiting for connections.");
-
+        log(Main.gr_start);
         final Thread heartbeatReception = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -97,68 +94,17 @@ public class Server {
         });
         heartbeatReception.start();
 
-        Thread commandThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Scanner scanner = new Scanner(System.in);
-
-                while(true) {
-                    String line = scanner.nextLine();
-
-                    String[] spl = line.split("\\s+");
-
-                    if(spl[0].equalsIgnoreCase("quit")) {
-                        System.exit(0);
-                    }
-
-                    else if (spl[0].equalsIgnoreCase("hosts")) {
-                       log(hosts.size() + "");
-                    }
-
-                    else if(spl[0].equalsIgnoreCase("hostlist")) {
-                        String output = hosts.size() + " host(s): ";
-
-                        for (int i = 0; i < hosts.size(); i++) {
-                            if(i != 0) {
-                                output += " - ";
-                            }
-                            Host host = hosts.get(i);
-
-                            output += host.getAddress() + ":" + host.getPortNumber();
-                        }
-
-                        log(output);
-                    }
-
-                    else if(spl[0].equalsIgnoreCase("debind")) {
-                        try {
-                            getHost(Integer.parseInt(spl[1])).closeHost();
-                        } catch (Exception er) {
-                            log("An error occurred.");
-                        }
-                    }
-
-                    else {
-                        log("Unknown command!");
-                    }
-//                    else if(spl[0].equalsIgnoreCase("refresh")) {
-//                        System.out.println("[CONSOLE] Attempting refresh");
-//                    }
-                }
-            }
-        });
-        commandThread.start();
-
         boolean isRunning = true;
         // Waiting for connections from hosts
         while(isRunning) {
             // Accept a host connection.
             try {
                 final Socket hostSocket = messageServer.accept();
+                Host host = new Host(hostSocket);
 
                 // Getting of user login information will occur here
+//                final DataInputStream inStream = new DataInputStream(hostSocket.getInputStream());
 
-                Host host = new Host(hostSocket, null);
                 host.start();
                 addHost(host);
             } catch (Exception e) {
@@ -171,6 +117,15 @@ public class Server {
     }
 
     public static void addHost(Host host) {
+        String srvnm = host.getServerName();
+        String motd = Main.srv_motd.replaceAll("%server%", srvnm);
+        log(Main.srv_add.replaceAll("%server%", srvnm));
+        InetSocketAddress sock = new InetSocketAddress(InetAddress.getLoopbackAddress(), host.getPortNumber());
+        final ServerInfo info = ProxyServer.getInstance().constructServerInfo(srvnm, sock, motd, Main.srv_restr);
+        ProxyServer.getInstance().getServers().put(srvnm, info);
+        for (ListenerInfo listener: ProxyServer.getInstance().getConfigurationAdapter().getListeners()) {
+            listener.getForcedHosts().put(srvnm, srvnm);
+        }
         hosts.add(host);
         hostMap.put(host.getAddress(), host);
         portMap.put(host.getPortNumber(), host);
@@ -178,6 +133,12 @@ public class Server {
     }
 
     public static void removeHost(Host host) {
+        String srvnm = host.getServerName();
+        log(Main.srv_del.replaceAll("%server%", srvnm));
+        ProxyServer.getInstance().getServers().remove(srvnm);
+        for (ListenerInfo listener: ProxyServer.getInstance().getConfigurationAdapter().getListeners()) {
+            listener.getForcedHosts().remove(srvnm, srvnm);
+        }
         hosts.remove(host);
         portsTaken.remove(host.getPortNumber());
     }
@@ -201,7 +162,6 @@ public class Server {
     }
 
     public static void log(String log) {
-        String tag = DateFormat.getDateTimeInstance().format(new Date(System.currentTimeMillis()));
-        System.out.println("[" + tag + "] " + log);
+        System.out.println(Main.log_pref+log);
     }
 }

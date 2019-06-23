@@ -1,0 +1,12 @@
+# GrapplServer Config File
+
+# ===== Authentication =====
+Require Authentication: true #UNUSED
+# if set to false, allow anonymous login
+
+AuthWith: BungeeAuth #UNUSED
+# use BungeeAuth plugin for authentication
+
+# ===== Server Config =====
+Servers Restricted: false
+# should grappl servers be considered "restricted"?

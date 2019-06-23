@@ -1,0 +1,19 @@
+# GrapplServer's Messages File
+
+# You can configure messages sent by GrapplServer here.
+# Use "%player%" for player name. Player name only works for reset_noreg, reset_success, welcome_resume and welcome_register.
+# Use "%email%" in welcome_register and register if you have email requirement enabled.
+# Use "%bungee%"
+
+# ===== Server Display =====
+df_srvnm: "grappl%port%"
+srv_motd: "&b&l%server%&r&3 is hosted via GrapplServer."
+
+# ===== Logging =====
+log_pref: "[GrapplServer]: "
+srv_add: "adding server %server%"
+srv_del: "removing server %server%"
+gr_start: "GrapplServer started and listening for connections."
+hst_conn: "H:%host% CONNECTED"
+hst_hosting: "%port%: H:%host% HOSTING"
+hst_close: "%port%: H:%host% CLOSED"

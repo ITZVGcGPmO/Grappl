@@ -1,11 +1,12 @@
 package com.daexsys.grappl.server;
 
+import io.github.itzvgcgpmo.grappl4bungee.Main;
+
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.text.DateFormat;
-import java.util.Date;
 
 /**
  * A host represents the connection between the server and an open Grappl client.
@@ -32,11 +33,11 @@ public class Host {
     // The port number the ExServer is running on.
     private int portNumber;
 
+    // The bungeecord server name (and forced_host entry)
+    private String srvnm;
+
     // The number of ExClients currently connected to the ExServer. This variable is not always accurate. (Fix?)
     private int clientCount = 0;
-
-    // The user account associated with this host. Currently unused.
-    private User user;
 
     // The time the host opened
     private long timeOpened;
@@ -47,17 +48,15 @@ public class Host {
     /**
      * Construct a host object.
      * @param socket the message-socket associated with this host
-     * @param user the user account associated with this host
      */
-    public Host(final Socket socket, final User user) {
+    public Host(final Socket socket) {
         this.messageSocket = socket;
         this.address = socket.getInetAddress().toString();
-        this.user = user;
 
         timeOpened = System.currentTimeMillis();
 
         // Display debug message for VPS-user to see.
-        log("HOST connected " + socket.getInetAddress());
+        log(Main.hst_conn.replaceAll("%host%", socket.getInetAddress().toString()));
     }
 
     /**
@@ -72,17 +71,22 @@ public class Host {
     public void start() {
         try {
             final Host thisHost = this;
-            portNumber = Server.getPort(getUser());
-
-            final int trafficPortNumber = portNumber + 1;
-            trafficSocket = new ServerSocket(trafficPortNumber);
+            final DataInputStream inStream = new DataInputStream(messageSocket.getInputStream());
+            portNumber = Server.getPort(inStream.readInt());
+            trafficSocket = new ServerSocket(portNumber+1);
 
             // Tell the host what port they're running on.
             final PrintStream printStream = new PrintStream(messageSocket.getOutputStream());
             printStream.println(getPortNumber());
 
+            srvnm = inStream.readLine();
+            if (!(0 < srvnm.length() && srvnm.length() < 64)) {
+                srvnm = Main.df_srvnm.replaceAll("%port%", getPortNumber()+"");
+            }
+            log(srvnm);
+
             final ServerSocket serviceServer = new ServerSocket(getPortNumber());
-            log("HOSTING connections at port: " + getPortNumber());
+            log(Main.hst_hosting.replaceAll("%port%", getPortNumber()+"").replaceAll("%host%", messageSocket.getInetAddress().toString()));
 
             open = true;
 
@@ -100,8 +104,8 @@ public class Host {
                             final Socket local = serviceServer.accept();
 
                             // Display message that a client is attempting to connect
-                            log(getPortNumber() + ": EX-CLIENT:(" + local.getInetAddress() + ") is attempting to connect to HOST:(" +
-                                    messageSocket.getInetAddress() + ")");
+//                            log(getPortNumber()+": EX-CL:"+local.getInetAddress()+" ATTEMPT -> H:"+
+//                                    messageSocket.getInetAddress());
 
                             // Inform host that something is coming
                             printStream.println(getPortNumber());
@@ -115,7 +119,7 @@ public class Host {
                             }
                         }
                     } catch (Exception e) {
-                        log(getPortNumber() + ": WARNING CONNECTION FAILED SHUTTING DOWN HOST");
+                        log(getPortNumber()+": CONNECTION FAILED; SHUTDOWN HOST");
 
                         try {
                             serviceServer.close();
@@ -142,7 +146,7 @@ public class Host {
         if(open) {
             open = false;
 
-            log(getPortNumber() + ": Host closed at port: " + getPortNumber() + "(" + address + ")");
+            log(Main.hst_close.replaceAll("%port%", getPortNumber()+"").replaceAll("%host%", address));
 
             try {
                 messageSocket.close();
@@ -155,8 +159,7 @@ public class Host {
     }
 
     public static void log(String log) {
-        String tag = DateFormat.getDateTimeInstance().format(new Date(System.currentTimeMillis()));
-        System.out.println("[" + tag + "] " + log);
+        System.out.println("[GrapplServer] " + log);
     }
 
     /**
@@ -177,9 +180,8 @@ public class Host {
                     // Get traffic socket.
                     final Socket remote = trafficSocket.accept();
 
-                    log(getPortNumber() + ": EX-CLIENT:(" + local.getInetAddress() + ") has connected to HOST:(" +
-                            messageSocket.getInetAddress() + ")");
-
+//                    log(getPortNumber()+": EX-CL:"+local.getInetAddress()+" CONNECTED -> H:"+
+//                            messageSocket.getInetAddress());
                     Thread localToRemote = new Thread(new Runnable() {
                         @Override
                         public void run() {
@@ -269,12 +271,12 @@ public class Host {
         return portNumber;
     }
 
-    public boolean isOpen() {
-        return open;
+    public String getServerName() {
+        return srvnm;
     }
 
-    public User getUser() {
-        return user;
+    public boolean isOpen() {
+        return open;
     }
 
     public int connectionCount() {
